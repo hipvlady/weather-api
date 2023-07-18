@@ -1,16 +1,44 @@
-# This is a sample Python script.
+from flask import Flask, render_template
+import pandas as pd
+app = Flask(__name__)
 
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+stations_list = "data_small/stations.txt"
+stations = pd.read_csv(stations_list, skiprows=17, on_bad_lines='skip')
+stations = stations[["STAID","STANAME                                 "]]
 
 
-def print_hi(name):
+@app.route('/')
+def home():
     # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press ⌘F8 to toggle the breakpoint.
+    return render_template("index.html", data=stations.to_html())
+
+
+@app.route('/api/v1/<station>/<date>')
+def get_station_date_data(station, date):
+    # Use a breakpoint in the code line below to debug your script.
+    filename = "data_small/TG_STAID"+str(station).zfill(6)+".txt"
+    df = pd.read_csv(filename, skiprows=20, on_bad_lines='skip', parse_dates=["    DATE"])
+    temperature = df.loc[df["    DATE"] == date, "   TG"].squeeze() / 10
+    return {"station":station, "date":date, "temperature": temperature}
+
+
+@app.route('/api/v1/<station>')
+def get_station_all_data(station):
+    filename = "data_small/TG_STAID" + str(station).zfill(6) + ".txt"
+    df = pd.read_csv(filename, skiprows=20, on_bad_lines='skip', parse_dates=["    DATE"])
+    result = df.to_dict(orient="records")
+    return result
+
+
+@app.route("/api/v1/annual/<station>/<year>")
+def get_station_annual_data(station, year):
+    filename = "data_small/TG_STAID" + str(station).zfill(6) + ".txt"
+    df = pd.read_csv(filename, skiprows=20, on_bad_lines='skip', parse_dates=["    DATE"])
+    df["    DATE"] = df["    DATE"].astype(str)
+    result = df[df["    DATE"].str.startswith(str(year))].to_dict(orient="records")
+    return result
 
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    app.run(debug=True)
